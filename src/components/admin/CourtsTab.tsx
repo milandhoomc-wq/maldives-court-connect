@@ -1,0 +1,271 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+
+type Court = {
+  id: string;
+  name: string;
+  location: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+const CourtsTab = () => {
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCourt, setEditingCourt] = useState<Court | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    location: "",
+    description: "",
+  });
+
+  useEffect(() => {
+    fetchCourts();
+  }, []);
+
+  const fetchCourts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("courts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setCourts(data || []);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      if (editingCourt) {
+        const { error } = await supabase
+          .from("courts")
+          .update({
+            name: formData.name,
+            location: formData.location,
+            description: formData.description || null,
+          })
+          .eq("id", editingCourt.id);
+
+        if (error) throw error;
+        toast.success("Court updated successfully");
+      } else {
+        const { error } = await supabase
+          .from("courts")
+          .insert({
+            name: formData.name,
+            location: formData.location,
+            description: formData.description || null,
+          });
+
+        if (error) throw error;
+        toast.success("Court created successfully");
+      }
+
+      setDialogOpen(false);
+      resetForm();
+      fetchCourts();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("courts")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Court deleted successfully");
+      fetchCourts();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const openDialog = (court?: Court) => {
+    if (court) {
+      setEditingCourt(court);
+      setFormData({
+        name: court.name,
+        location: court.location,
+        description: court.description || "",
+      });
+    } else {
+      resetForm();
+    }
+    setDialogOpen(true);
+  };
+
+  const resetForm = () => {
+    setEditingCourt(null);
+    setFormData({
+      name: "",
+      location: "",
+      description: "",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Courts Management</CardTitle>
+            <CardDescription>Manage court information</CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => openDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Court
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleSubmit}>
+                <DialogHeader>
+                  <DialogTitle>{editingCourt ? "Edit Court" : "Add Court"}</DialogTitle>
+                  <DialogDescription>
+                    {editingCourt ? "Update court information" : "Create a new court"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Sh.Milandhoo Magistrate Court"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location *</Label>
+                    <Input
+                      id="location"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="Sh.Milandhoo"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Additional court information"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingCourt ? "Update" : "Create"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {courts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No courts found. Create your first court to get started.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {courts.map((court) => (
+                <TableRow key={court.id}>
+                  <TableCell className="font-medium">{court.name}</TableCell>
+                  <TableCell>{court.location}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {court.description || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDialog(court)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Court</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this court? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(court.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default CourtsTab;
