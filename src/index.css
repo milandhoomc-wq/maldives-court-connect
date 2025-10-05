@@ -89,3 +89,26 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .bg-court-1 { background-color: hsl(var(--court-1)); }
+  .text-court-1-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-court-2 { background-color: hsl(var(--court-2)); }
+  .text-court-2-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-court-3 { background-color: hsl(var(--court-3)); }
+  .text-court-3-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-court-4 { background-color: hsl(var(--court-4)); }
+  .text-court-4-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-court-5 { background-color: hsl(var(--court-5)); }
+  .text-court-5-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-court-6 { background-color: hsl(var(--court-6)); }
+  .text-court-6-foreground { color: hsl(var(--accent-foreground)); }
+  
+  .bg-holiday-light { background-color: hsl(var(--holiday-light)); }
+  .text-holiday { color: hsl(var(--holiday)); }
+}

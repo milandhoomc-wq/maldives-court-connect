@@ -128,11 +128,22 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
     });
   };
 
-  const getCourtColor = (courtId: string) => {
+  const getCourtColorClasses = (courtId: string) => {
     const index = courts.findIndex((c) => c.id === courtId);
+    const colorMap = {
+      "court-1": "bg-court-1 text-court-1-foreground",
+      "court-2": "bg-court-2 text-court-2-foreground",
+      "court-3": "bg-court-3 text-court-3-foreground",
+      "court-4": "bg-court-4 text-court-4-foreground",
+      "court-5": "bg-court-5 text-court-5-foreground",
+      "court-6": "bg-court-6 text-court-6-foreground",
+    };
+    
+    if (courtId === schedule.court_id) return "bg-accent text-accent-foreground";
+    
     const colors = ["court-1", "court-2", "court-3", "court-4", "court-5", "court-6"];
-    if (courtId === schedule.court_id) return "accent";
-    return colors[index % colors.length];
+    const colorKey = colors[index % colors.length];
+    return colorMap[colorKey as keyof typeof colorMap];
   };
 
   const handleSlotClick = (date: Date, time: string) => {
@@ -226,12 +237,12 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
                         const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
                         const rowSpan = durationMinutes / 15;
                         const courtName = booking.display_court?.name || schedule.courts.name;
-                        const colorClass = getCourtColor(booking.display_court_id || schedule.court_id);
+                        const colorClasses = getCourtColorClasses(booking.display_court_id || schedule.court_id);
 
                         return (
                           <div
                             key={`${day.toISOString()}-${slot.time}`}
-                            className={`bg-${colorClass} text-${colorClass}-foreground p-2 cursor-pointer hover:opacity-80 transition-opacity flex flex-col justify-center`}
+                            className={`${colorClasses} p-2 cursor-pointer hover:opacity-80 transition-opacity flex flex-col justify-center`}
                             style={{ gridRow: `span ${rowSpan}` }}
                             onClick={() => handleSlotClick(day, slot.time)}
                           >
