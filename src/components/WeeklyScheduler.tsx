@@ -169,113 +169,96 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentWeekStart(subWeeks(currentWeekStart, 1))}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous Week
-            </Button>
-            <h3 className="text-lg font-semibold">
-              {format(currentWeekStart, "MMM d")} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 0 }), "MMM d, yyyy")}
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, 1))}
-            >
-              Next Week
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Week Navigation Header */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={() => setCurrentWeekStart(subWeeks(currentWeekStart, 1))}
+          className="gap-2"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <h2 className="text-2xl font-bold">
+          {format(currentWeekStart, "MMM d")} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 0 }), "MMM d, yyyy")}
+        </h2>
+        <Button
+          variant="outline"
+          onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, 1))}
+          className="gap-2"
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[800px]">
-                <div className="grid grid-cols-8 gap-px bg-border">
-                  <div className="bg-card p-2 font-semibold text-sm">Time</div>
-                  {weekDays.map((day) => {
-                    const dayHolidays = getHolidaysForDate(day);
-                    const isHol = isWeekend(day) || dayHolidays.length > 0;
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={`bg-card p-2 text-center ${isHol ? "bg-holiday-light" : ""}`}
-                      >
-                        <div className="font-semibold text-sm">{format(day, "EEE")}</div>
-                        <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
-                        {dayHolidays.map((h) => (
-                          <div key={h.id} className="text-xs text-holiday font-medium mt-1">
-                            {h.name}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-7 gap-4">
+          {weekDays.map((day) => {
+            const dayHolidays = getHolidaysForDate(day);
+            const isHol = isWeekend(day) || dayHolidays.length > 0;
+            const dayBookings = bookings.filter((b) => b.date === format(day, "yyyy-MM-dd"));
+
+            return (
+              <Card key={day.toISOString()} className={`overflow-hidden ${isHol ? "opacity-60" : ""}`}>
+                <div className={`p-4 border-b ${isHol ? "bg-holiday-light" : "bg-muted/50"}`}>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold uppercase tracking-wide">{format(day, "EEE")}</div>
+                    <div className="text-2xl font-bold mt-1">{format(day, "d")}</div>
+                    <div className="text-xs text-muted-foreground">{format(day, "MMM")}</div>
+                  </div>
+                  {dayHolidays.map((h) => (
+                    <div key={h.id} className="text-xs text-holiday font-medium text-center mt-2 px-2 py-1 bg-background/50 rounded">
+                      {h.name}
+                    </div>
+                  ))}
                 </div>
 
-                {timeSlots.map((slot) => (
-                  <div key={slot.time} className="grid grid-cols-8 gap-px bg-border">
-                    <div className="bg-card p-2 text-sm font-medium">{slot.time}</div>
-                    {weekDays.map((day) => {
-                      const booking = getBookingForSlot(day, slot.time);
-                      const isHol = isWeekend(day) || isHoliday(day);
-                      const isFirstSlot = booking && booking.start_time.startsWith(slot.time);
-
-                      if (booking && isFirstSlot) {
-                        const startTime = parse(booking.start_time, "HH:mm:ss", new Date());
-                        const endTime = parse(booking.end_time, "HH:mm:ss", new Date());
-                        const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
-                        const rowSpan = durationMinutes / 15;
-                        const courtName = booking.display_court?.name || schedule.courts.name;
-                        const colorClasses = getCourtColorClasses(booking.display_court_id || schedule.court_id);
-
-                        return (
-                          <div
-                            key={`${day.toISOString()}-${slot.time}`}
-                            className={`${colorClasses} p-2 cursor-pointer hover:opacity-80 transition-opacity flex flex-col justify-center`}
-                            style={{ gridRow: `span ${rowSpan}` }}
-                            onClick={() => handleSlotClick(day, slot.time)}
-                          >
-                            <div className="text-xs font-semibold line-clamp-2">{courtName}</div>
-                            <div className="text-xs opacity-90">{booking.case_number}</div>
-                            <div className="text-xs opacity-75">
-                              {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                            </div>
-                          </div>
-                        );
-                      } else if (booking) {
-                        return null;
-                      }
-
+                <CardContent className="p-3 space-y-2 min-h-[400px]">
+                  {isHol ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      {isWeekend(day) ? "Weekend" : "Holiday"}
+                    </div>
+                  ) : dayBookings.length > 0 ? (
+                    dayBookings.map((booking) => {
+                      const colorClasses = getCourtColorClasses(booking.display_court_id || schedule.court_id);
+                      const courtName = booking.display_court?.name || schedule.courts.name;
+                      
                       return (
                         <div
-                          key={`${day.toISOString()}-${slot.time}`}
-                          className={`bg-card p-2 ${
-                            isHol
-                              ? "bg-holiday-light cursor-not-allowed"
-                              : "cursor-pointer hover:bg-secondary transition-colors"
-                          }`}
-                          onClick={() => !isHol && handleSlotClick(day, slot.time)}
-                        />
+                          key={booking.id}
+                          className={`${colorClasses} p-3 rounded-lg cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105`}
+                          onClick={() => setSelectedBooking(booking)}
+                        >
+                          <div className="text-xs font-bold mb-1">{courtName}</div>
+                          <div className="text-sm font-semibold mb-1 line-clamp-2">{booking.case_number}</div>
+                          <div className="text-xs opacity-90 font-medium">
+                            {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                          </div>
+                        </div>
                       );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    })
+                  ) : (
+                    <button
+                      onClick={() => handleSlotClick(day, "09:00")}
+                      className="w-full py-8 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg hover:border-primary/50 hover:bg-secondary/50 transition-all group"
+                    >
+                      <div className="text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                        Click to add booking
+                      </div>
+                    </button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {selectedSlot && (
         <BookingDialog
