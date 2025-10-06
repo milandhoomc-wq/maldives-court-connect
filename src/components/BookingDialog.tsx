@@ -55,6 +55,7 @@ const BookingDialog = ({
     caseNumber: "",
     endTime: "",
   });
+  const [endTimeOptions, setEndTimeOptions] = useState<string[]>([]);
 
   useEffect(() => {
     if (booking) {
@@ -72,22 +73,78 @@ const BookingDialog = ({
     }
   }, [booking]);
 
-  const getEndTimeOptions = () => {
-    if (!startTime) return [];
-    const [startHour, startMinute] = startTime.split(":").map(Number);
-    const options: string[] = [];
-    
-    for (let hour = startHour; hour <= 16; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === startHour && minute <= startMinute) continue;
-        if (hour === 16 && minute > 0) break;
-        
-        const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-        options.push(time);
-      }
+  useEffect(() => {
+    if (!booking && scheduleId && date && startTime && formData.courtId) {
+      fetchEndTimeOptions();
     }
-    
-    return options;
+  }, [booking, scheduleId, date, startTime, formData.courtId]);
+
+  const fetchEndTimeOptions = async () => {
+    if (!scheduleId || !date || !startTime || !formData.courtId) return;
+
+    try {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const courtToCheck = formData.courtId;
+
+      // Get all bookings for the same court on the same date
+      const { data: existingBookings, error } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("date", dateStr)
+        .or(`display_court_id.eq.${courtToCheck},and(display_court_id.is.null,court_id.eq.${scheduleId})`)
+        .order("start_time");
+
+      if (error) throw error;
+
+      // Find the next booking after the selected start time
+      const nextBooking = existingBookings?.find((b) => {
+        const bookingCourt = b.display_court_id || b.court_id;
+        return bookingCourt === courtToCheck && b.start_time > (startTime + ":00");
+      });
+
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const options: string[] = [];
+      
+      // Determine the maximum end time
+      let maxHour = 16;
+      let maxMinute = 0;
+      
+      if (nextBooking) {
+        const [nextHour, nextMinute] = nextBooking.start_time.substring(0, 5).split(":").map(Number);
+        maxHour = nextHour;
+        maxMinute = nextMinute;
+      }
+      
+      for (let hour = startHour; hour <= maxHour; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+          if (hour === startHour && minute <= startMinute) continue;
+          if (hour === maxHour && minute >= maxMinute) break;
+          if (hour === 16 && minute > 0) break;
+          
+          const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          options.push(time);
+        }
+      }
+      
+      setEndTimeOptions(options);
+    } catch (error) {
+      console.error("Error fetching end time options:", error);
+      // Fallback to default options if there's an error
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const options: string[] = [];
+      
+      for (let hour = startHour; hour <= 16; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+          if (hour === startHour && minute <= startMinute) continue;
+          if (hour === 16 && minute > 0) break;
+          
+          const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          options.push(time);
+        }
+      }
+      
+      setEndTimeOptions(options);
+    }
   };
 
   const checkOverlap = async () => {
@@ -269,7 +326,7 @@ const BookingDialog = ({
                     <SelectValue placeholder="Select end time" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getEndTimeOptions().map((time) => (
+                    {endTimeOptions.map((time) => (
                       <SelectItem key={time} value={time}>
                         {time}
                       </SelectItem>
