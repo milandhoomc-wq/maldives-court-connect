@@ -168,8 +168,37 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
     }
   };
 
+  const getBookingHeight = (booking: Booking) => {
+    const start = parse(booking.start_time, "HH:mm:ss", new Date());
+    const end = parse(booking.end_time, "HH:mm:ss", new Date());
+    const diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    const slots = diffMinutes / 15;
+    return slots;
+  };
+
+  const getBookingPosition = (booking: Booking, date: Date) => {
+    if (format(new Date(booking.date), "yyyy-MM-dd") !== format(date, "yyyy-MM-dd")) {
+      return null;
+    }
+    
+    const startTime = parse(booking.start_time, "HH:mm:ss", new Date());
+    const startHour = startTime.getHours();
+    const startMinute = startTime.getMinutes();
+    
+    const slotIndex = timeSlots.findIndex(
+      (slot) => slot.hour === startHour && slot.minute === startMinute
+    );
+    
+    if (slotIndex === -1) return null;
+    
+    return {
+      row: slotIndex,
+      span: getBookingHeight(booking),
+    };
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Week Navigation Header */}
       <div className="flex items-center justify-between">
         <Button
@@ -198,65 +227,100 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-7 gap-4">
-          {weekDays.map((day) => {
-            const dayHolidays = getHolidaysForDate(day);
-            const isHol = isWeekend(day) || dayHolidays.length > 0;
-            const dayBookings = bookings.filter((b) => b.date === format(day, "yyyy-MM-dd"));
-
-            return (
-              <Card key={day.toISOString()} className={`overflow-hidden ${isHol ? "opacity-60" : ""}`}>
-                <div className={`p-4 border-b ${isHol ? "bg-holiday-light" : "bg-muted/50"}`}>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold uppercase tracking-wide">{format(day, "EEE")}</div>
-                    <div className="text-2xl font-bold mt-1">{format(day, "d")}</div>
+        <div className="overflow-x-auto border rounded-lg">
+          <div className="min-w-[900px]">
+            {/* Header Row with Days */}
+            <div className="grid grid-cols-8 bg-muted/50 border-b sticky top-0 z-10">
+              <div className="p-4 border-r font-semibold">Time</div>
+              {weekDays.map((day) => {
+                const dayHolidays = getHolidaysForDate(day);
+                const isHol = isWeekend(day) || dayHolidays.length > 0;
+                
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`p-4 border-r last:border-r-0 text-center ${isHol ? "bg-holiday-light" : ""}`}
+                  >
+                    <div className="font-semibold">{format(day, "EEE")}</div>
+                    <div className="text-2xl font-bold">{format(day, "d")}</div>
                     <div className="text-xs text-muted-foreground">{format(day, "MMM")}</div>
+                    {dayHolidays.map((h) => (
+                      <div key={h.id} className="text-xs text-holiday font-medium mt-1">
+                        {h.name}
+                      </div>
+                    ))}
                   </div>
-                  {dayHolidays.map((h) => (
-                    <div key={h.id} className="text-xs text-holiday font-medium text-center mt-2 px-2 py-1 bg-background/50 rounded">
-                      {h.name}
-                    </div>
-                  ))}
-                </div>
+                );
+              })}
+            </div>
 
-                <CardContent className="p-3 space-y-2 min-h-[400px]">
-                  {isHol ? (
-                    <div className="text-center text-sm text-muted-foreground py-8">
-                      {isWeekend(day) ? "Weekend" : "Holiday"}
-                    </div>
-                  ) : dayBookings.length > 0 ? (
-                    dayBookings.map((booking) => {
-                      const colorClasses = getCourtColorClasses(booking.display_court_id || schedule.court_id);
-                      const courtName = booking.display_court?.name || schedule.courts.name;
+            {/* Time Grid */}
+            <div className="grid grid-cols-8">
+              {/* Time Column */}
+              <div className="border-r">
+                {timeSlots.map((slot) => (
+                  <div
+                    key={slot.time}
+                    className="h-16 p-2 border-b text-sm text-muted-foreground font-medium"
+                  >
+                    {slot.time}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day Columns */}
+              {weekDays.map((day) => {
+                const isHol = isWeekend(day) || isHoliday(day);
+                const dayBookings = bookings.filter((b) => b.date === format(day, "yyyy-MM-dd"));
+                
+                return (
+                  <div key={day.toISOString()} className="border-r last:border-r-0 relative">
+                    {timeSlots.map((slot, index) => {
+                      const booking = getBookingForSlot(day, slot.time);
+                      const isFirstSlotOfBooking = booking && booking.start_time.startsWith(slot.time);
                       
                       return (
                         <div
-                          key={booking.id}
-                          className={`${colorClasses} p-3 rounded-lg cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105`}
-                          onClick={() => setSelectedBooking(booking)}
+                          key={slot.time}
+                          className={`h-16 border-b relative ${
+                            isHol
+                              ? "bg-muted/30 cursor-not-allowed"
+                              : "hover:bg-secondary/30 cursor-pointer"
+                          }`}
+                          onClick={() => !isHol && !booking && handleSlotClick(day, slot.time)}
                         >
-                          <div className="text-xs font-bold mb-1">{courtName}</div>
-                          <div className="text-sm font-semibold mb-1 line-clamp-2">{booking.case_number}</div>
-                          <div className="text-xs opacity-90 font-medium">
-                            {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                          </div>
+                          {isFirstSlotOfBooking && booking && (
+                            <div
+                              className={`absolute inset-x-1 top-1 rounded p-2 cursor-pointer hover:shadow-lg transition-shadow z-10 ${getCourtColorClasses(
+                                booking.display_court_id || schedule.court_id
+                              )}`}
+                              style={{
+                                height: `${getBookingHeight(booking) * 4 - 0.5}rem`,
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBooking(booking);
+                              }}
+                            >
+                              <div className="text-xs font-bold">
+                                {booking.display_court?.name || schedule.courts.name}
+                              </div>
+                              <div className="text-sm font-semibold line-clamp-2 mt-1">
+                                {booking.case_number}
+                              </div>
+                              <div className="text-xs opacity-90 font-medium mt-1">
+                                {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
-                    })
-                  ) : (
-                    <button
-                      onClick={() => handleSlotClick(day, "09:00")}
-                      className="w-full py-8 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg hover:border-primary/50 hover:bg-secondary/50 transition-all group"
-                    >
-                      <div className="text-sm text-muted-foreground group-hover:text-primary transition-colors">
-                        Click to add booking
-                      </div>
-                    </button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
