@@ -239,7 +239,7 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
                 return (
                   <div
                     key={day.toISOString()}
-                    className={`p-4 border-r last:border-r-0 text-center ${isHol ? "bg-muted/50" : ""}`}
+                    className={`p-4 border-r last:border-r-0 text-center ${isHol ? "bg-holiday-light" : ""}`}
                   >
                     <div className="font-semibold">{format(day, "EEE")}</div>
                     <div className="text-2xl font-bold">{format(day, "d")}</div>
@@ -275,7 +275,7 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
                 const dayBookings = bookings.filter((b) => b.date === format(day, "yyyy-MM-dd"));
                 
                 return (
-                  <div key={day.toISOString()} className={`border-r last:border-r-0 relative ${isHol ? "bg-muted/50" : ""}`}>
+                  <div key={day.toISOString()} className={`border-r last:border-r-0 relative ${isHol ? "bg-holiday-light" : ""}`}>
                     {timeSlots.map((slot, index) => {
                       const booking = getBookingForSlot(day, slot.time);
                       const isFirstSlotOfBooking = booking && booking.start_time.startsWith(slot.time);
