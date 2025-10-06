@@ -90,12 +90,54 @@ const BookingDialog = ({
     return options;
   };
 
+  const checkOverlap = async () => {
+    if (!scheduleId || !date || !startTime || !formData.endTime) return false;
+
+    const dateStr = format(date, "yyyy-MM-dd");
+    const newStart = startTime + ":00";
+    const newEnd = formData.endTime + ":00";
+    const courtToCheck = formData.courtId || scheduleId;
+
+    // Get all bookings for the same court on the same date
+    const { data: existingBookings, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("date", dateStr)
+      .or(`display_court_id.eq.${courtToCheck},display_court_id.is.null`)
+      .or(`court_id.eq.${scheduleId}`);
+
+    if (error) throw error;
+
+    // Check for time overlap
+    const hasOverlap = existingBookings?.some((booking) => {
+      // Only check bookings for the same display court or those without a display court
+      const bookingCourt = booking.display_court_id || booking.court_id;
+      if (bookingCourt !== courtToCheck) return false;
+
+      const existingStart = booking.start_time;
+      const existingEnd = booking.end_time;
+
+      // Check if times overlap: new start is before existing end AND new end is after existing start
+      return newStart < existingEnd && newEnd > existingStart;
+    });
+
+    return hasOverlap;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!scheduleId || !date || !startTime) return;
 
     setLoading(true);
     try {
+      // Check for overlaps
+      const hasOverlap = await checkOverlap();
+      if (hasOverlap) {
+        toast.error("This time slot overlaps with an existing booking");
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.from("bookings").insert({
         court_id: scheduleId,
         display_court_id: formData.courtId || null,
@@ -210,20 +252,31 @@ const BookingDialog = ({
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTime">End Time *</Label>
-              <Select value={formData.endTime} onValueChange={(value) => setFormData({ ...formData, endTime: value })} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select end time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getEndTimeOptions().map((time) => (
-                    <SelectItem key={time} value={time}>
-                      {time}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  id="startTime"
+                  value={startTime || ""}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End Time *</Label>
+                <Select value={formData.endTime} onValueChange={(value) => setFormData({ ...formData, endTime: value })} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select end time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getEndTimeOptions().map((time) => (
+                      <SelectItem key={time} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
