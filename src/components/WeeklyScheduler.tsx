@@ -147,7 +147,7 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
   };
 
   const handleSlotClick = (date: Date, time: string) => {
-    if (isWeekend(date) || isHoliday(date)) return;
+    if (isWeekend(date)) return;
     const booking = getBookingForSlot(date, time);
     if (booking) {
       setSelectedBooking(booking);
@@ -239,7 +239,7 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
                 return (
                   <div
                     key={day.toISOString()}
-                    className={`p-4 border-r last:border-r-0 text-center ${isHol ? "bg-holiday-light" : ""}`}
+                    className={`p-4 border-r last:border-r-0 text-center ${isHol ? "bg-muted/50" : ""}`}
                   >
                     <div className="font-semibold">{format(day, "EEE")}</div>
                     <div className="text-2xl font-bold">{format(day, "d")}</div>
@@ -271,10 +271,11 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
               {/* Day Columns */}
               {weekDays.map((day) => {
                 const isHol = isWeekend(day) || isHoliday(day);
+                const isWeekendDay = isWeekend(day);
                 const dayBookings = bookings.filter((b) => b.date === format(day, "yyyy-MM-dd"));
                 
                 return (
-                  <div key={day.toISOString()} className="border-r last:border-r-0 relative">
+                  <div key={day.toISOString()} className={`border-r last:border-r-0 relative ${isHol ? "bg-muted/50" : ""}`}>
                     {timeSlots.map((slot, index) => {
                       const booking = getBookingForSlot(day, slot.time);
                       const isFirstSlotOfBooking = booking && booking.start_time.startsWith(slot.time);
@@ -283,11 +284,11 @@ const WeeklyScheduler = ({ schedule }: { schedule: CourtSchedule }) => {
                         <div
                           key={slot.time}
                           className={`h-16 border-b relative ${
-                            isHol
-                              ? "bg-muted/30 cursor-not-allowed"
+                            isWeekendDay
+                              ? "cursor-not-allowed"
                               : "hover:bg-secondary/30 cursor-pointer"
                           }`}
-                          onClick={() => !isHol && !booking && handleSlotClick(day, slot.time)}
+                          onClick={() => !isWeekendDay && !booking && handleSlotClick(day, slot.time)}
                         >
                           {isFirstSlotOfBooking && booking && (
                             <div
