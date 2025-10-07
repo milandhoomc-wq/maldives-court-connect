@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Scale, LogOut } from "lucide-react";
 import CourtsTab from "@/components/admin/CourtsTab";
-import SchedulesTab from "@/components/admin/SchedulesTab";
 import HolidaysTab from "@/components/admin/HolidaysTab";
 
 const Admin = () => {
@@ -58,18 +57,13 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="courts" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="courts">Courts</TabsTrigger>
-            <TabsTrigger value="schedules">Schedules</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
           </TabsList>
 
           <TabsContent value="courts" className="mt-6">
             <CourtsTab />
-          </TabsContent>
-
-          <TabsContent value="schedules" className="mt-6">
-            <SchedulesTab />
           </TabsContent>
 
           <TabsContent value="holidays" className="mt-6">

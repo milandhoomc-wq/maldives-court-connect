@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 
 type Court = {
   id: string;
@@ -26,6 +28,7 @@ const CourtsTab = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     location: "",
@@ -89,6 +92,21 @@ const CourtsTab = () => {
     }
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("courts")
+        .update({ is_active: !currentStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success(`Court ${!currentStatus ? "activated" : "deactivated"} successfully`);
+      fetchCourts();
+    } catch (error: any) {
+      toast.error("Error updating court status: " + error.message);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase
@@ -103,6 +121,15 @@ const CourtsTab = () => {
       toast.error(error.message);
     }
   };
+
+  const filteredCourts = courts.filter((court) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      court.name.toLowerCase().includes(query) ||
+      court.location.toLowerCase().includes(query) ||
+      (court.description?.toLowerCase().includes(query) || false)
+    );
+  });
 
   const openDialog = (court?: Court) => {
     if (court) {
@@ -136,13 +163,13 @@ const CourtsTab = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Courts Management</CardTitle>
-            <CardDescription>Manage court information</CardDescription>
-          </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Courts Management</CardTitle>
+              <CardDescription>Manage court information and activation status</CardDescription>
+            </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => openDialog()}>
@@ -204,9 +231,20 @@ const CourtsTab = () => {
         </div>
       </CardHeader>
       <CardContent>
-        {courts.length === 0 ? (
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search courts by name, location, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+        {filteredCourts.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No courts found. Create your first court to get started.
+            {courts.length === 0 ? "No courts found. Create your first court to get started." : "No courts match your search."}
           </div>
         ) : (
           <Table>
@@ -215,19 +253,38 @@ const CourtsTab = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courts.map((court) => (
-                <TableRow key={court.id}>
-                  <TableCell className="font-medium">{court.name}</TableCell>
+              {filteredCourts.map((court) => (
+                <TableRow key={court.id} className={court.is_active ? "bg-primary/5" : ""}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {court.name}
+                      {court.is_active && (
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{court.location}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {court.description || "—"}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={court.is_active}
+                        onCheckedChange={() => handleToggleActive(court.id, court.is_active)}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {court.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"

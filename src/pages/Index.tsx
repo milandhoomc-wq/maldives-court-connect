@@ -11,42 +11,44 @@ type Court = {
   name: string;
   location: string;
   description: string | null;
-};
-
-type CourtSchedule = {
-  id: string;
-  court_id: string;
   is_active: boolean;
-  courts: Court;
 };
 
 const Index = () => {
-  const [schedules, setSchedules] = useState<CourtSchedule[]>([]);
-  const [selectedSchedule, setSelectedSchedule] = useState<CourtSchedule | null>(null);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSchedules();
+    fetchCourts();
   }, []);
 
-  const fetchSchedules = async () => {
+  const fetchCourts = async () => {
     try {
       const { data, error } = await supabase
-        .from("court_schedules")
-        .select("*, courts(*)")
+        .from("courts")
+        .select("*")
         .eq("is_active", true)
-        .order("courts(name)");
+        .order("name");
 
       if (error) throw error;
-      setSchedules(data || []);
+      setCourts(data || []);
     } catch (error: any) {
-      console.error("Error fetching schedules:", error);
+      console.error("Error fetching courts:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (selectedSchedule) {
+  if (selectedCourt) {
+    // Create a schedule-like object for compatibility with WeeklyScheduler
+    const scheduleData = {
+      id: selectedCourt.id,
+      court_id: selectedCourt.id,
+      is_active: selectedCourt.is_active,
+      courts: selectedCourt
+    };
+
     return (
       <div className="min-h-screen bg-secondary/30">
         <header className="bg-card border-b border-border">
@@ -55,7 +57,7 @@ const Index = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedSchedule(null)}
+                onClick={() => setSelectedCourt(null)}
               >
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Back to Courts
@@ -66,10 +68,10 @@ const Index = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-foreground">
-                    {selectedSchedule.courts.name}
+                    {selectedCourt.name}
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {selectedSchedule.courts.location}
+                    {selectedCourt.location}
                   </p>
                 </div>
               </div>
@@ -77,7 +79,7 @@ const Index = () => {
           </div>
         </header>
         <main className="container mx-auto px-4 py-8">
-          <WeeklyScheduler schedule={selectedSchedule} />
+          <WeeklyScheduler schedule={scheduleData} />
         </main>
       </div>
     );
@@ -111,36 +113,36 @@ const Index = () => {
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
-        ) : schedules.length === 0 ? (
+        ) : courts.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center py-12">
               <p className="text-muted-foreground">
-                No active court schedules available at this time.
+                No active courts available at this time.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {schedules.map((schedule) => (
+            {courts.map((court) => (
               <Card
-                key={schedule.id}
+                key={court.id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => setSelectedSchedule(schedule)}
+                onClick={() => setSelectedCourt(court)}
               >
                 <CardHeader>
                   <CardTitle className="flex items-start gap-2">
                     <Scale className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{schedule.courts.name}</span>
+                    <span className="line-clamp-2">{court.name}</span>
                   </CardTitle>
                   <CardDescription className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    {schedule.courts.location}
+                    {court.location}
                   </CardDescription>
                 </CardHeader>
-                {schedule.courts.description && (
+                {court.description && (
                   <CardContent>
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {schedule.courts.description}
+                      {court.description}
                     </p>
                   </CardContent>
                 )}
